@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shadow Empire | Теневая экономика</title>
     <style>
+        /* Стили остаются без изменений */
         * {
             margin: 0;
             padding: 0;
@@ -768,6 +769,7 @@
                         🛒 Корзина <span class="cart-badge" id="cart-badge">0</span>
                     </div>
                     <div class="nav-item" data-section="my-property">🏘️ Мое имущество</div>
+                    <div class="nav-item" data-section="public-market">👁️ Общий рынок</div>
                     <div id="seller-orders-nav" class="nav-item hidden" data-section="seller-orders">📋 Заказы</div>
                     <div class="nav-item" data-section="profile">👤 Профиль</div>
                 </div>
@@ -1155,6 +1157,35 @@
                 </div>
             </div>
 
+            <!-- Секция Общий рынок -->
+            <div id="public-market-section" class="section">
+                <h2 class="section-title">👁️ ОБЩИЙ РЫНОК</h2>
+                
+                <div class="tab-container">
+                    <div class="tab active" data-tab="public-products">📦 Товары</div>
+                    <div class="tab" data-tab="public-realty">🏠 Недвижимость</div>
+                    <div class="tab" data-tab="public-auction">⚜️ Аукцион</div>
+                </div>
+                
+                <div id="public-products" class="tab-content active">
+                    <div class="grid" id="public-products-container">
+                        <!-- Все товары будут загружены здесь -->
+                    </div>
+                </div>
+                
+                <div id="public-realty" class="tab-content">
+                    <div class="grid" id="public-realty-container">
+                        <!-- Вся недвижимость будет загружена здесь -->
+                    </div>
+                </div>
+                
+                <div id="public-auction" class="tab-content">
+                    <div class="grid" id="public-auction-container">
+                        <!-- Все лоты аукциона будут загружены здесь -->
+                    </div>
+                </div>
+            </div>
+
             <!-- Секция Заказы продавца -->
             <div id="seller-orders-section" class="section">
                 <h2 class="section-title">📋 ЗАКАЗЫ ДЛЯ ОБРАБОТКИ</h2>
@@ -1462,6 +1493,9 @@
                 case 'my-property':
                     loadUserProperty();
                     break;
+                case 'public-market':
+                    loadPublicMarket();
+                    break;
                 case 'seller-orders':
                     loadSellerOrders();
                     break;
@@ -1506,6 +1540,15 @@
                     break;
                 case 'my-orders':
                     loadUserOrders();
+                    break;
+                case 'public-products':
+                    loadPublicProducts();
+                    break;
+                case 'public-realty':
+                    loadPublicRealty();
+                    break;
+                case 'public-auction':
+                    loadPublicAuction();
                     break;
             }
         }
@@ -1995,11 +2038,185 @@
             showNotification('Корзина очищена');
         }
 
-        // Заглушки для остальных функций
+        // Функция оформления заказа
         function checkout() {
-            showNotification('Функция оформления заказа в разработке', 'warning');
+            if (cart.length === 0) {
+                showNotification('Корзина пуста', 'error');
+                return;
+            }
+            
+            let total = 0;
+            let orderItems = [];
+            
+            // Проверяем наличие товаров и рассчитываем общую стоимость
+            for (let item of cart) {
+                let itemData;
+                if (item.type === 'product') {
+                    itemData = DB.products.find(p => p.id === item.id);
+                    if (!itemData || itemData.stock < item.quantity) {
+                        showNotification(`Товар "${itemData ? itemData.name : 'Неизвестный'}" недоступен в нужном количестве`, 'error');
+                        return;
+                    }
+                } else if (item.type === 'realty') {
+                    itemData = DB.realty.find(r => r.id === item.id);
+                    if (!itemData) {
+                        showNotification(`Объект недвижимости недоступен`, 'error');
+                        return;
+                    }
+                }
+                
+                if (itemData) {
+                    total += itemData.price * item.quantity;
+                    orderItems.push({
+                        type: item.type,
+                        id: item.id,
+                        name: itemData.name,
+                        price: itemData.price,
+                        quantity: item.quantity,
+                        seller: itemData.seller
+                    });
+                }
+            }
+            
+            // Проверяем баланс пользователя
+            if (currentUser.balance < total) {
+                showNotification('Недостаточно средств на счете', 'error');
+                return;
+            }
+            
+            // Создаем заказ
+            const orderId = Date.now();
+            const order = {
+                id: orderId,
+                buyer: currentUser.username,
+                items: orderItems,
+                total: total,
+                date: new Date().toISOString(),
+                status: 'pending'
+            };
+            
+            DB.orders.push(order);
+            
+            // Обновляем баланс пользователя
+            currentUser.balance -= total;
+            
+            // Добавляем транзакцию
+            DB.transactions.push({
+                user: currentUser.username,
+                amount: -total,
+                description: `Оплата заказа #${orderId}`,
+                date: new Date().toISOString()
+            });
+            
+            // Обновляем количество товаров
+            for (let item of cart) {
+                if (item.type === 'product') {
+                    const product = DB.products.find(p => p.id === item.id);
+                    if (product) {
+                        product.stock -= item.quantity;
+                    }
+                }
+            }
+            
+            // Очищаем корзину
+            cart = [];
+            
+            saveDB();
+            updateUI();
+            loadCart();
+            
+            showNotification(`Заказ #${orderId} успешно оформлен! Сумма: ${total.toLocaleString()} ₽`);
         }
 
+        // Функции для просмотра чужих предметов
+        function loadPublicMarket() {
+            loadPublicProducts();
+        }
+
+        function loadPublicProducts() {
+            const container = document.getElementById('public-products-container');
+            const products = DB.products.filter(p => p.stock > 0);
+            
+            if (products.length === 0) {
+                container.innerHTML = '<div class="card" style="text-align: center; color: #666;">📦 Нет товаров в продаже</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            products.forEach(product => {
+                const productCard = document.createElement('div');
+                productCard.className = 'card';
+                productCard.innerHTML = `
+                    <div class="card-title">${product.name}</div>
+                    <div class="card-price">${product.price.toLocaleString()} ₽</div>
+                    <div class="card-seller">Продавец: ${product.seller}</div>
+                    <div class="card-stock">В наличии: ${product.stock} шт.</div>
+                    <p>${product.description}</p>
+                    <button class="button button-small" onclick="addToCart('product', ${product.id})" style="width: 100%; margin-top: 10px;">🛒 В КОРЗИНУ</button>
+                `;
+                container.appendChild(productCard);
+            });
+        }
+
+        function loadPublicRealty() {
+            const container = document.getElementById('public-realty-container');
+            const realty = DB.realty;
+            
+            if (realty.length === 0) {
+                container.innerHTML = '<div class="card" style="text-align: center; color: #666;">🏠 Нет объектов недвижимости в продаже</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            realty.forEach(item => {
+                const itemCard = document.createElement('div');
+                itemCard.className = 'card realty-theme';
+                itemCard.innerHTML = `
+                    <div class="card-title">${item.name}</div>
+                    <div class="card-price">${item.price.toLocaleString()} ₽</div>
+                    <div class="card-seller">Продавец: ${item.seller}</div>
+                    <p>${item.description}</p>
+                    <button class="button button-small" onclick="addToCart('realty', ${item.id})" style="width: 100%; margin-top: 15px;">🛒 В КОРЗИНУ</button>
+                `;
+                container.appendChild(itemCard);
+            });
+        }
+
+        function loadPublicAuction() {
+            const container = document.getElementById('public-auction-container');
+            const activeLots = DB.auction.filter(lot => lot.active && new Date(lot.endTime) > new Date());
+            
+            if (activeLots.length === 0) {
+                container.innerHTML = '<div class="card auction-theme" style="text-align: center; color: #666;">⚜️ Активных лотов нет</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            activeLots.forEach(lot => {
+                const timeLeft = Math.max(0, Math.floor((new Date(lot.endTime) - new Date()) / (1000 * 60 * 60)));
+                const timeLeftMinutes = Math.floor(((new Date(lot.endTime) - new Date()) % (1000 * 60 * 60)) / (1000 * 60));
+                
+                const lotCard = document.createElement('div');
+                lotCard.className = 'card auction-theme';
+                lotCard.innerHTML = `
+                    <div class="card-title">${lot.name}</div>
+                    <div class="card-price">${lot.currentPrice.toLocaleString()} ₽</div>
+                    <p><strong>Категория:</strong> ${lot.category === 'cars' ? '🚗 Автомобили' : 
+                                                     lot.category === 'houses' ? '🏘️ Недвижимость' : 
+                                                     lot.category === 'business' ? '🏢 Бизнес' : '📦 Другое'}</p>
+                    <p><strong>Текущий победитель:</strong> ${lot.currentBidder || 'Нет'}</p>
+                    <p><strong>Время до конца:</strong> ${timeLeft}ч ${timeLeftMinutes}м</p>
+                    <p>${lot.description}</p>
+                    <div class="form-group" style="margin-top: 15px;">
+                        <input type="number" id="bid-amount-${lot.id}" class="form-input" placeholder="Ваша ставка" min="${lot.currentPrice + 1}" max="100000000">
+                        <button class="button button-small" onclick="makeBid(${lot.id})" style="width: 100%; margin-top: 10px;">💵 СДЕЛАТЬ СТАВКУ</button>
+                    </div>
+                `;
+                container.appendChild(lotCard);
+            });
+        }
+
+        // Заглушки для остальных функций
         function adminAddFunds() {
             showNotification('Функция пополнения баланса в разработке', 'warning');
         }
