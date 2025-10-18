@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shadow Empire | Теневая экономика</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+        
+        body {
+            background: #0a0a0a;
+            color: #00ff00;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .terminal {
+            background: #000;
+            border: 2px solid #00ff00;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.3);
+            max-width: 600px;
+            width: 90%;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px #00ff00;
+        }
+        
+        .status {
+            background: #001100;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 3px solid #00ff00;
+        }
+        
+        .login-form {
+            margin: 20px 0;
+        }
+        
+        input, select, button {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            background: #001100;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            border-radius: 5px;
+        }
+        
+        button {
+            background: #003300;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #00ff00;
+            color: #000;
+        }
+        
+        .users {
+            margin-top: 20px;
+            background: #001100;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        
+        .user-item {
+            padding: 8px;
+            border-bottom: 1px solid #003300;
+        }
+        
+        .blink {
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal">
+        <h1>🕶️ SHADOW EMPIRE</h1>
+        
+        <div class="status">
+            <span class="blink">⚡ СИСТЕМА АКТИВНА</span> | 
+            <span>🔒 ЗАЩИЩЕНО</span> | 
+            <span>🌐 ОНЛАЙН</span>
+        </div>
+        
+        <div class="login-form">
+            <h3>🚪 ВХОД В СИСТЕМУ</h3>
+            <input type="text" id="username" placeholder="Логин" value="owner">
+            <input type="password" id="password" placeholder="Пароль" value="owner123">
+            <button onclick="login()">ВОЙТИ В СИСТЕМУ</button>
+        </div>
+        
+        <div class="users">
+            <h3>👥 ТЕСТОВЫЕ АККАУНТЫ:</h3>
+            <div class="user-item"><strong>Владелец:</strong> owner / owner123</div>
+            <div class="user-item"><strong>Тех. Админ:</strong> tech_admin / admin123</div>
+            <div class="user-item"><strong>Продавец:</strong> seller1 / 123</div>
+            <div class="user-item"><strong>Покупатель:</strong> buyer1 / 123</div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px; padding: 10px; background: #330000; border-radius: 5px;">
+            <small class="blink">⚠️ ДЕМО-СИСТЕМА | ВСЕ ДАННЫЕ В LOCALSTORAGE</small>
+        </div>
+    </div>
+
+    <script>
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            // Простая проверка логина
+            const users = {
+                'owner': 'owner123',
+                'tech_admin': 'admin123', 
+                'seller1': '123',
+                'buyer1': '123'
+            };
+            
+            if (users[username] && users[username] === password) {
+                // Сохраняем в localStorage
+                localStorage.setItem('currentUser', username);
+                
+                // Показываем успешный вход
+                document.body.innerHTML = `
+                    <div class="terminal">
+                        <h1>✅ УСПЕШНЫЙ ВХОД</h1>
+                        <div class="status">
+                            Добро пожаловать, ${username}!
+                        </div>
+                        <button onclick="loadMainApp()" style="margin-top: 20px;">
+                            🚀 ЗАГРУЗИТЬ ПОЛНУЮ ВЕРСИЮ
+                        </button>
+                    </div>
+                `;
+            } else {
+                alert('❌ Неверный логин или пароль!');
+            }
+        }
+        
+        function loadMainApp() {
+            // Загружаем основное приложение
+            const user = localStorage.getItem('currentUser');
+            
+            document.body.innerHTML = `
+                <div class="terminal">
+                    <h1>🎮 SHADOW EMPIRE</h1>
+                    <div class="status">
+                        👤 Пользователь: ${user} | 💰 Баланс: 1,000,000 ₽
+                    </div>
+                    
+                    <div style="margin: 20px 0;">
+                        <button onclick="showSection('bank')">🏦 БАНК</button>
+                        <button onclick="showSection('realty')">🏠 НЕДВИЖИМОСТЬ</button>
+                        <button onclick="showSection('darknet')">🌐 ДАРКНЕТ</button>
+                        <button onclick="logout()">🚪 ВЫЙТИ</button>
+                    </div>
+                    
+                    <div id="content">
+                        <h3>Добро пожаловать в Shadow Empire!</h3>
+                        <p>Выберите раздел для начала работы.</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function showSection(section) {
+            const content = document.getElementById('content');
+            const sections = {
+                bank: '<h3>🏦 БАНК</h3><p>Баланс: 1,000,000 ₽</p><button>ПОПОЛНИТЬ</button>',
+                realty: '<h3>🏠 НЕДВИЖИМОСТЬ</h3><p>Доступные объекты...</p>',
+                darknet: '<h3>🌐 ДАРКНЕТ</h3><p>Товары и услуги...</p>'
+            };
+            
+            content.innerHTML = sections[section] || '<p>Раздел в разработке</p>';
+        }
+        
+        function logout() {
+            localStorage.removeItem('currentUser');
+            location.reload();
+        }
+        
+        // Проверяем, есть ли активный пользователь
+        window.addEventListener('load', function() {
+            const currentUser = localStorage.getItem('currentUser');
+            if (currentUser) {
+                loadMainApp();
+            }
+        });
+    </script>
+</body>
+</html>
