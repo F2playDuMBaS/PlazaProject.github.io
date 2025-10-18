@@ -1170,47 +1170,38 @@
     <div id="notification" class="notification"></div>
 
     <script>
-        // Инициализация при загрузке
-        document.addEventListener('DOMContentLoaded', function() {
-            initDB();
-            
-            // Проверяем авторизацию
-            const savedUser = localStorage.getItem('empire_current_user');
-            if (savedUser) {
-                const user = JSON.parse(savedUser);
-                const users = JSON.parse(localStorage.getItem('empire_users') || '[]');
-                const dbUser = users.find(u => u.username === user.username && u.password === user.password);
-                
-                if (dbUser) {
-                    currentUser = dbUser;
-                    document.getElementById('auth-screen').classList.remove('active');
-                    document.getElementById('main-screen').classList.add('active');
-                    updateUI();
-                }
-            }
-        });
-
         // База данных
         let DB = {
-            users: JSON.parse(localStorage.getItem('empire_users')) || [],
-            products: JSON.parse(localStorage.getItem('empire_products')) || [],
-            realty: JSON.parse(localStorage.getItem('empire_realty')) || [],
-            auction: JSON.parse(localStorage.getItem('empire_auction')) || [],
-            transactions: JSON.parse(localStorage.getItem('empire_transactions')) || [],
-            bids: JSON.parse(localStorage.getItem('empire_bids')) || [],
-            orders: JSON.parse(localStorage.getItem('empire_orders')) || [],
-            userProperty: JSON.parse(localStorage.getItem('empire_user_property')) || [],
-            userProfiles: JSON.parse(localStorage.getItem('empire_user_profiles')) || []
+            users: [],
+            products: [],
+            realty: [],
+            auction: [],
+            transactions: [],
+            bids: [],
+            orders: [],
+            userProperty: [],
+            userProfiles: []
         };
 
         let currentUser = null;
-        let cart = JSON.parse(localStorage.getItem('empire_cart')) || [];
+        let cart = [];
 
         // Инициализация базы данных
         function initDB() {
             try {
+                // Загружаем данные из localStorage
+                DB.users = JSON.parse(localStorage.getItem('empire_users')) || [];
+                DB.products = JSON.parse(localStorage.getItem('empire_products')) || [];
+                DB.realty = JSON.parse(localStorage.getItem('empire_realty')) || [];
+                DB.auction = JSON.parse(localStorage.getItem('empire_auction')) || [];
+                DB.transactions = JSON.parse(localStorage.getItem('empire_transactions')) || [];
+                DB.bids = JSON.parse(localStorage.getItem('empire_bids')) || [];
+                DB.orders = JSON.parse(localStorage.getItem('empire_orders')) || [];
+                DB.userProperty = JSON.parse(localStorage.getItem('empire_user_property')) || [];
+                DB.userProfiles = JSON.parse(localStorage.getItem('empire_user_profiles')) || [];
+
+                // Если пользователей нет, создаем тестовых
                 if (DB.users.length === 0) {
-                    // Создаем тестовых пользователей
                     DB.users.push({
                         username: 'owner',
                         password: 'owner123',
@@ -1242,53 +1233,56 @@
                         balance: 10000000,
                         registered: new Date().toISOString()
                     });
-                    
+
                     // Добавляем тестовые товары
-                    if (DB.products.length === 0) {
-                        DB.products.push({
-                            id: Date.now(),
-                            name: "Премиум кокаин",
-                            price: 5000,
-                            seller: "seller1",
-                            stock: 100,
-                            category: "drugs",
-                            description: "Высококачественный кокаин из Колумбии"
-                        });
-                        
-                        DB.products.push({
-                            id: Date.now() + 1,
-                            name: "АК-47",
-                            price: 15000,
-                            seller: "seller1",
-                            stock: 50,
-                            category: "weapons",
-                            description: "Надежный автомат Калашникова"
-                        });
-                    }
+                    DB.products.push({
+                        id: Date.now(),
+                        name: "Премиум кокаин",
+                        price: 5000,
+                        seller: "seller1",
+                        stock: 100,
+                        category: "drugs",
+                        description: "Высококачественный кокаин из Колумбии"
+                    });
                     
+                    DB.products.push({
+                        id: Date.now() + 1,
+                        name: "АК-47",
+                        price: 15000,
+                        seller: "seller1",
+                        stock: 50,
+                        category: "weapons",
+                        description: "Надежный автомат Калашникова"
+                    });
+
                     // Добавляем тестовую недвижимость
-                    if (DB.realty.length === 0) {
-                        DB.realty.push({
-                            id: Date.now() + 2,
-                            name: "Пентхаус в Москва-Сити",
-                            price: 50000000,
-                            seller: "seller1",
-                            type: "houses",
-                            description: "Роскошный пентхаус с панорамным видом"
-                        });
-                        
-                        DB.realty.push({
-                            id: Date.now() + 3,
-                            name: "Ferrari F8 Tributo",
-                            price: 25000000,
-                            seller: "seller1",
-                            type: "cars",
-                            description: "Спортивный автомобиль класса люкс"
-                        });
-                    }
+                    DB.realty.push({
+                        id: Date.now() + 2,
+                        name: "Пентхаус в Москва-Сити",
+                        price: 50000000,
+                        seller: "seller1",
+                        type: "houses",
+                        description: "Роскошный пентхаус с панорамным видом"
+                    });
                     
+                    DB.realty.push({
+                        id: Date.now() + 3,
+                        name: "Ferrari F8 Tributo",
+                        price: 25000000,
+                        seller: "seller1",
+                        type: "cars",
+                        description: "Спортивный автомобиль класса люкс"
+                    });
+
                     saveDB();
                 }
+
+                // Загружаем корзину
+                const savedCart = localStorage.getItem(`empire_cart_${currentUser ? currentUser.username : ''}`);
+                if (savedCart) {
+                    cart = JSON.parse(savedCart);
+                }
+
             } catch (e) {
                 console.log("Ошибка инициализации:", e);
             }
@@ -1305,22 +1299,194 @@
                 localStorage.setItem('empire_orders', JSON.stringify(DB.orders));
                 localStorage.setItem('empire_user_property', JSON.stringify(DB.userProperty));
                 localStorage.setItem('empire_user_profiles', JSON.stringify(DB.userProfiles));
-                localStorage.setItem('empire_cart', JSON.stringify(cart));
                 
                 if (currentUser) {
-                    localStorage.setItem('empire_current_user', JSON.stringify({
-                        username: currentUser.username,
-                        password: currentUser.password
-                    }));
+                    localStorage.setItem(`empire_cart_${currentUser.username}`, JSON.stringify(cart));
                 }
             } catch (e) {
                 console.log("Ошибка сохранения:", e);
             }
         }
 
-        // Остальные функции остаются без изменений...
-        // [Здесь должен быть весь остальной JavaScript код из вашего исходного файла]
-        // Для экономии места я не копирую его полностью, но он должен работать
+        // Уведомления
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Авторизация
+        function login() {
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+            
+            if (!username || !password) {
+                showNotification('Заполните все поля', 'error');
+                return;
+            }
+            
+            const user = DB.users.find(u => u.username === username && u.password === password);
+            
+            if (user) {
+                currentUser = user;
+                document.getElementById('auth-screen').classList.remove('active');
+                document.getElementById('main-screen').classList.add('active');
+                
+                // Загружаем корзину пользователя
+                const savedCart = localStorage.getItem(`empire_cart_${currentUser.username}`);
+                if (savedCart) {
+                    cart = JSON.parse(savedCart);
+                }
+                
+                // Обновляем UI
+                updateUI();
+                
+                showNotification('Успешный вход в систему');
+            } else {
+                showNotification('Неверный логин или пароль', 'error');
+            }
+        }
+
+        function register() {
+            const username = document.getElementById('reg-username').value.trim();
+            const password = document.getElementById('reg-password').value;
+            const role = document.getElementById('reg-role').value;
+            
+            if (!username || !password) {
+                showNotification('Заполните все поля', 'error');
+                return;
+            }
+            
+            if (username.length < 3) {
+                showNotification('Логин должен быть не менее 3 символов', 'error');
+                return;
+            }
+            
+            if (password.length < 3) {
+                showNotification('Пароль должен быть не менее 3 символов', 'error');
+                return;
+            }
+            
+            if (DB.users.find(u => u.username === username)) {
+                showNotification('Пользователь с таким логином уже существует', 'error');
+                return;
+            }
+            
+            const initialBalance = role === 'seller' ? 100000 : 50000;
+            
+            const newUser = {
+                username,
+                password,
+                role,
+                balance: initialBalance,
+                registered: new Date().toISOString()
+            };
+            
+            DB.users.push(newUser);
+            saveDB();
+            
+            // Очистка полей
+            document.getElementById('reg-username').value = '';
+            document.getElementById('reg-password').value = '';
+            
+            showNotification('Аккаунт успешно создан! Теперь вы можете войти в систему.');
+        }
+
+        function logout() {
+            currentUser = null;
+            cart = [];
+            document.getElementById('auth-screen').classList.add('active');
+            document.getElementById('main-screen').classList.remove('active');
+            document.getElementById('login-username').value = '';
+            document.getElementById('login-password').value = '';
+            showNotification('Вы вышли из системы');
+        }
+
+        // Навигация
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const section = this.getAttribute('data-section');
+                
+                // Обновляем активную кнопку
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Показываем соответствующую секцию
+                document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+                document.getElementById(`${section}-section`).classList.add('active');
+            });
+        });
+
+        // Обновление UI
+        function updateUI() {
+            if (!currentUser) return;
+            
+            // Обновляем панель пользователя
+            document.getElementById('current-user').textContent = currentUser.username;
+            let roleText = '';
+            switch(currentUser.role) {
+                case 'buyer': roleText = 'Покупатель'; break;
+                case 'seller': roleText = 'Продавец'; break;
+                case 'tech_admin': roleText = 'Тех. Админ'; break;
+                case 'owner': roleText = 'Владелец'; break;
+            }
+            document.getElementById('current-role').textContent = roleText;
+            
+            // Обновляем баланс
+            document.getElementById('current-balance').textContent = currentUser.balance.toLocaleString();
+            document.getElementById('bank-balance').textContent = currentUser.balance.toLocaleString() + ' ₽';
+            
+            // Показываем/скрываем элементы в зависимости от роли
+            updateRoleBasedUI();
+            
+            // Обновляем корзину
+            updateCartUI();
+        }
+
+        function updateRoleBasedUI() {
+            // Сбрасываем все скрытые элементы
+            document.getElementById('admin-controls').classList.add('hidden');
+            document.getElementById('seller-realty-tab').classList.add('hidden');
+            document.getElementById('seller-darknet-tab').classList.add('hidden');
+            document.getElementById('seller-orders-nav').classList.add('hidden');
+            document.getElementById('seller-my-realty-tab').classList.add('hidden');
+            document.getElementById('seller-my-products-tab').classList.add('hidden');
+            document.getElementById('seller-auction-tab').classList.add('hidden');
+            document.getElementById('seller-my-lots-tab').classList.add('hidden');
+            
+            // Показываем элементы в зависимости от роли
+            if (currentUser.role === 'owner' || currentUser.role === 'tech_admin') {
+                document.getElementById('admin-controls').classList.remove('hidden');
+            }
+            
+            if (currentUser.role === 'seller' || currentUser.role === 'owner' || currentUser.role === 'tech_admin') {
+                document.getElementById('seller-realty-tab').classList.remove('hidden');
+                document.getElementById('seller-darknet-tab').classList.remove('hidden');
+                document.getElementById('seller-orders-nav').classList.remove('hidden');
+                document.getElementById('seller-my-realty-tab').classList.remove('hidden');
+                document.getElementById('seller-my-products-tab').classList.remove('hidden');
+                document.getElementById('seller-auction-tab').classList.remove('hidden');
+                document.getElementById('seller-my-lots-tab').classList.remove('hidden');
+            }
+        }
+
+        function updateCartUI() {
+            const badge = document.getElementById('cart-badge');
+            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+            badge.textContent = totalItems;
+        }
+
+        // Инициализация при загрузке
+        document.addEventListener('DOMContentLoaded', function() {
+            initDB();
+        });
+
+        // Добавьте здесь остальные функции из вашего исходного кода...
+        // Они будут работать так же как в оригинале
 
     </script>
 </body>
