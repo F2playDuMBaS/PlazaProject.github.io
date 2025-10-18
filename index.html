@@ -695,11 +695,11 @@
                     <h3>> ВХОД В СИСТЕМУ</h3>
                     <div class="form-group">
                         <label class="form-label">Логин:</label>
-                        <input type="text" id="login-username" class="form-input" placeholder="Введите логин" value="owner">
+                        <input type="text" id="login-username" class="form-input" placeholder="Введите логин">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Пароль:</label>
-                        <input type="password" id="login-password" class="form-input" placeholder="Введите пароль" value="owner123">
+                        <input type="password" id="login-password" class="form-input" placeholder="Введите пароль">
                     </div>
                     <button class="button" onclick="login()" style="width: 100%">🚪 ВОЙТИ В СИСТЕМУ</button>
                 </div>
@@ -1537,6 +1537,9 @@
             
             // Инициализируем вкладки
             initTabs();
+            
+            // Загружаем начальные данные
+            loadSectionData('bank');
         }
 
         function updateRoleBasedUI() {
@@ -1564,6 +1567,167 @@
                 document.getElementById('seller-auction-tab').classList.remove('hidden');
                 document.getElementById('seller-my-lots-tab').classList.remove('hidden');
             }
+        }
+
+        // Функции для работы с товарами
+        function addProduct() {
+            if (currentUser.role !== 'seller' && currentUser.role !== 'owner' && currentUser.role !== 'tech_admin') {
+                showNotification('Только продавцы могут добавлять товары', 'error');
+                return;
+            }
+            
+            const name = document.getElementById('new-product-name').value.trim();
+            const price = parseInt(document.getElementById('new-product-price').value);
+            const stock = parseInt(document.getElementById('new-product-stock').value);
+            const category = document.getElementById('new-product-category').value;
+            const description = document.getElementById('new-product-desc').value.trim();
+            
+            if (!name || !price || !stock || !description) {
+                showNotification('Заполните все поля', 'error');
+                return;
+            }
+            
+            if (price < 1 || price > 100000000) {
+                showNotification('Цена должна быть от 1 до 100,000,000 ₽', 'error');
+                return;
+            }
+            
+            if (stock < 1 || stock > 10000) {
+                showNotification('Количество должно быть от 1 до 10,000', 'error');
+                return;
+            }
+            
+            const newProduct = {
+                id: Date.now(),
+                name,
+                price,
+                seller: currentUser.username,
+                stock,
+                category,
+                description
+            };
+            
+            DB.products.push(newProduct);
+            saveDB();
+            
+            // Очистка формы
+            document.getElementById('new-product-name').value = '';
+            document.getElementById('new-product-price').value = '';
+            document.getElementById('new-product-stock').value = '';
+            document.getElementById('new-product-desc').value = '';
+            
+            showNotification('Товар успешно добавлен в даркнет');
+            
+            // Обновляем список товаров
+            loadProductsByCategory(category);
+        }
+
+        function addRealty() {
+            if (currentUser.role !== 'seller' && currentUser.role !== 'owner' && currentUser.role !== 'tech_admin') {
+                showNotification('Только продавцы могут выставлять недвижимость', 'error');
+                return;
+            }
+            
+            const name = document.getElementById('new-realty-name').value.trim();
+            const type = document.getElementById('new-realty-type').value;
+            const price = parseInt(document.getElementById('new-realty-price').value);
+            const description = document.getElementById('new-realty-desc').value.trim();
+            
+            if (!name || !price || !description) {
+                showNotification('Заполните все поля', 'error');
+                return;
+            }
+            
+            if (price < 1 || price > 100000000) {
+                showNotification('Цена должна быть от 1 до 100,000,000 ₽', 'error');
+                return;
+            }
+            
+            const newRealty = {
+                id: Date.now(),
+                name,
+                price,
+                seller: currentUser.username,
+                type,
+                description
+            };
+            
+            DB.realty.push(newRealty);
+            saveDB();
+            
+            // Очистка формы
+            document.getElementById('new-realty-name').value = '';
+            document.getElementById('new-realty-price').value = '';
+            document.getElementById('new-realty-desc').value = '';
+            
+            showNotification('Объект недвижимости успешно выставлен на продажу');
+            
+            // Обновляем список недвижимости
+            loadRealtyByType(type);
+        }
+
+        function addAuctionLot() {
+            if (currentUser.role !== 'seller' && currentUser.role !== 'owner' && currentUser.role !== 'tech_admin') {
+                showNotification('Только продавцы могут выставлять лоты на аукцион', 'error');
+                return;
+            }
+            
+            const name = document.getElementById('new-lot-name').value.trim();
+            const category = document.getElementById('new-lot-category').value;
+            const price = parseInt(document.getElementById('new-lot-price').value);
+            const minBid = parseInt(document.getElementById('new-lot-min-bid').value);
+            const duration = parseInt(document.getElementById('new-lot-duration').value);
+            const description = document.getElementById('new-lot-desc').value.trim();
+            
+            if (!name || !price || !minBid || !duration || !description) {
+                showNotification('Заполните все поля', 'error');
+                return;
+            }
+            
+            if (price < 1 || price > 100000000) {
+                showNotification('Цена должна быть от 1 до 100,000,000 ₽', 'error');
+                return;
+            }
+            
+            if (minBid < 1 || minBid > 100000000) {
+                showNotification('Минимальная ставка должна быть от 1 до 100,000,000 ₽', 'error');
+                return;
+            }
+            
+            if (duration < 1 || duration > 720) {
+                showNotification('Длительность должна быть от 1 до 720 часов', 'error');
+                return;
+            }
+            
+            const newLot = {
+                id: Date.now(),
+                name,
+                seller: currentUser.username,
+                category,
+                startPrice: price,
+                currentPrice: price,
+                minBid,
+                endTime: new Date(Date.now() + duration * 60 * 60 * 1000).toISOString(),
+                description,
+                active: true,
+                bids: [],
+                currentBidder: null
+            };
+            
+            DB.auction.push(newLot);
+            saveDB();
+            
+            // Очистка формы
+            document.getElementById('new-lot-name').value = '';
+            document.getElementById('new-lot-price').value = '';
+            document.getElementById('new-lot-min-bid').value = '';
+            document.getElementById('new-lot-duration').value = '';
+            document.getElementById('new-lot-desc').value = '';
+            
+            showNotification('Лот успешно выставлен на аукцион');
+            
+            // Обновляем список лотов
+            loadAuction();
         }
 
         // Базовые функции для работы с данными
@@ -1832,18 +1996,6 @@
         }
 
         // Заглушки для остальных функций
-        function addRealty() {
-            showNotification('Функция добавления недвижимости в разработке', 'warning');
-        }
-
-        function addProduct() {
-            showNotification('Функция добавления товара в разработке', 'warning');
-        }
-
-        function addAuctionLot() {
-            showNotification('Функция добавления лота в разработке', 'warning');
-        }
-
         function checkout() {
             showNotification('Функция оформления заказа в разработке', 'warning');
         }
@@ -1890,12 +2042,75 @@
         // Заглушки для остальных функций загрузки
         function loadMyRealty() {
             const container = document.getElementById('my-realty-container');
-            container.innerHTML = '<div class="card" style="text-align: center; color: #666;">🏠 У вас нет объектов недвижимости</div>';
+            const myRealty = DB.realty.filter(r => r.seller === currentUser.username);
+            
+            if (myRealty.length === 0) {
+                container.innerHTML = '<div class="card" style="text-align: center; color: #666;">🏠 У вас нет объектов недвижимости</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            myRealty.forEach(item => {
+                const itemCard = document.createElement('div');
+                itemCard.className = 'card realty-theme';
+                itemCard.innerHTML = `
+                    <div class="card-title">${item.name}</div>
+                    <div class="card-price">${item.price.toLocaleString()} ₽</div>
+                    <p><strong>Тип:</strong> ${item.type === 'houses' ? '🏘️ Дом' : item.type === 'cars' ? '🚗 Машина' : '🏢 Бизнес'}</p>
+                    <p>${item.description}</p>
+                    <div class="card-actions">
+                        <button class="button button-small button-danger" onclick="deleteRealty(${item.id})">🗑️ Удалить</button>
+                    </div>
+                `;
+                container.appendChild(itemCard);
+            });
         }
 
         function loadMyProducts() {
             const container = document.getElementById('my-products-container');
-            container.innerHTML = '<div class="card" style="text-align: center; color: #666;">📦 У вас нет товаров</div>';
+            const myProducts = DB.products.filter(p => p.seller === currentUser.username);
+            
+            if (myProducts.length === 0) {
+                container.innerHTML = '<div class="card" style="text-align: center; color: #666;">📦 У вас нет товаров</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            myProducts.forEach(product => {
+                const productCard = document.createElement('div');
+                productCard.className = 'card';
+                productCard.innerHTML = `
+                    <div class="card-title">${product.name}</div>
+                    <div class="card-price">${product.price.toLocaleString()} ₽</div>
+                    <div class="card-stock">В наличии: ${product.stock} шт.</div>
+                    <p><strong>Категория:</strong> ${product.category === 'drugs' ? '💊 Наркотики' : product.category === 'weapons' ? '🔫 Оружие' : '📦 Разное'}</p>
+                    <p>${product.description}</p>
+                    <div class="card-actions">
+                        <button class="button button-small button-danger" onclick="deleteProduct(${product.id})">🗑️ Удалить</button>
+                    </div>
+                `;
+                container.appendChild(productCard);
+            });
+        }
+
+        function deleteRealty(id) {
+            const index = DB.realty.findIndex(r => r.id === id && r.seller === currentUser.username);
+            if (index !== -1) {
+                DB.realty.splice(index, 1);
+                saveDB();
+                loadMyRealty();
+                showNotification('Объект недвижимости удален');
+            }
+        }
+
+        function deleteProduct(id) {
+            const index = DB.products.findIndex(p => p.id === id && p.seller === currentUser.username);
+            if (index !== -1) {
+                DB.products.splice(index, 1);
+                saveDB();
+                loadMyProducts();
+                showNotification('Товар удален');
+            }
         }
 
         function loadMyBids() {
@@ -1905,7 +2120,47 @@
 
         function loadMyLots() {
             const container = document.getElementById('my-lots-container');
-            container.innerHTML = '<div class="card" style="text-align: center; color: #666;">⚜️ У вас нет лотов</div>';
+            const myLots = DB.auction.filter(lot => lot.seller === currentUser.username);
+            
+            if (myLots.length === 0) {
+                container.innerHTML = '<div class="card" style="text-align: center; color: #666;">⚜️ У вас нет лотов</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            myLots.forEach(lot => {
+                const timeLeft = Math.max(0, Math.floor((new Date(lot.endTime) - new Date()) / (1000 * 60 * 60)));
+                const timeLeftMinutes = Math.floor(((new Date(lot.endTime) - new Date()) % (1000 * 60 * 60)) / (1000 * 60));
+                const isActive = lot.active && new Date(lot.endTime) > new Date();
+                
+                const lotCard = document.createElement('div');
+                lotCard.className = 'card auction-theme';
+                lotCard.innerHTML = `
+                    <div class="card-title">${lot.name}</div>
+                    <div class="card-price">${lot.currentPrice.toLocaleString()} ₽</div>
+                    <p><strong>Категория:</strong> ${lot.category === 'cars' ? '🚗 Автомобили' : 
+                                                     lot.category === 'houses' ? '🏘️ Недвижимость' : 
+                                                     lot.category === 'business' ? '🏢 Бизнес' : '📦 Другое'}</p>
+                    <p><strong>Текущий победитель:</strong> ${lot.currentBidder || 'Нет'}</p>
+                    <p><strong>Время до конца:</strong> ${timeLeft}ч ${timeLeftMinutes}м</p>
+                    <p><strong>Статус:</strong> ${isActive ? '🟢 Активен' : '🔴 Завершен'}</p>
+                    <p>${lot.description}</p>
+                    <div class="card-actions">
+                        <button class="button button-small button-danger" onclick="deleteAuctionLot(${lot.id})">🗑️ Удалить лот</button>
+                    </div>
+                `;
+                container.appendChild(lotCard);
+            });
+        }
+
+        function deleteAuctionLot(id) {
+            const index = DB.auction.findIndex(lot => lot.id === id && lot.seller === currentUser.username);
+            if (index !== -1) {
+                DB.auction.splice(index, 1);
+                saveDB();
+                loadMyLots();
+                showNotification('Лот удален с аукциона');
+            }
         }
 
         function loadUserProperty() {
@@ -1914,21 +2169,126 @@
 
         function loadUserPropertyByType(type) {
             const container = document.getElementById(`my-${type}-container`);
-            container.innerHTML = `<div class="card" style="text-align: center; color: #666;">У вас нет ${type === 'houses' ? 'домов' : type === 'cars' ? 'машин' : 'бизнесов'}</div>`;
+            const userProperty = DB.userProperty.filter(p => p.owner === currentUser.username && p.type === type);
+            
+            if (userProperty.length === 0) {
+                let typeName = type === 'houses' ? 'домов' : type === 'cars' ? 'машин' : 'бизнесов';
+                container.innerHTML = `<div class="card" style="text-align: center; color: #666;">У вас нет ${typeName}</div>`;
+                return;
+            }
+            
+            container.innerHTML = '';
+            userProperty.forEach(item => {
+                const itemCard = document.createElement('div');
+                itemCard.className = 'card realty-theme';
+                itemCard.innerHTML = `
+                    <div class="card-title">${item.name}</div>
+                    <div class="card-price">Куплено за: ${item.purchasePrice.toLocaleString()} ₽</div>
+                    <p><strong>Дата покупки:</strong> ${new Date(item.purchaseDate).toLocaleDateString()}</p>
+                    <p>${item.description || 'Нет описания'}</p>
+                `;
+                container.appendChild(itemCard);
+            });
         }
 
         function loadUserOrders() {
             const container = document.getElementById('my-orders-container');
-            container.innerHTML = '<div class="card" style="text-align: center; color: #666;">📦 У вас нет заказов</div>';
+            const userOrders = DB.orders.filter(o => o.buyer === currentUser.username);
+            
+            if (userOrders.length === 0) {
+                container.innerHTML = '<div class="card" style="text-align: center; color: #666;">📦 У вас нет заказов</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            userOrders.forEach(order => {
+                const orderCard = document.createElement('div');
+                orderCard.className = 'order-item';
+                orderCard.innerHTML = `
+                    <div class="order-header">
+                        <div><strong>Заказ #${order.id}</strong></div>
+                        <div class="order-status ${order.status === 'completed' ? 'status-completed' : order.status === 'cancelled' ? 'status-cancelled' : 'status-pending'}">
+                            ${order.status === 'completed' ? '✅ Выполнен' : order.status === 'cancelled' ? '❌ Отменен' : '⏳ В обработке'}
+                        </div>
+                    </div>
+                    <div class="card-price">${order.total.toLocaleString()} ₽</div>
+                    <p><strong>Дата:</strong> ${new Date(order.date).toLocaleDateString()}</p>
+                    <p><strong>Товаров:</strong> ${order.items.length} шт.</p>
+                `;
+                container.appendChild(orderCard);
+            });
         }
 
         function loadSellerOrders() {
             const container = document.getElementById('seller-orders-container');
-            container.innerHTML = '<div class="card" style="text-align: center; color: #666;">📦 У вас нет заказов для обработки</div>';
+            const sellerOrders = DB.orders.filter(o => o.seller === currentUser.username);
+            
+            if (sellerOrders.length === 0) {
+                container.innerHTML = '<div class="card" style="text-align: center; color: #666;">📦 У вас нет заказов для обработки</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            sellerOrders.forEach(order => {
+                const orderCard = document.createElement('div');
+                orderCard.className = 'order-item';
+                orderCard.innerHTML = `
+                    <div class="order-header">
+                        <div><strong>Заказ #${order.id}</strong></div>
+                        <div class="order-status ${order.status === 'completed' ? 'status-completed' : order.status === 'cancelled' ? 'status-cancelled' : 'status-pending'}">
+                            ${order.status === 'completed' ? '✅ Выполнен' : order.status === 'cancelled' ? '❌ Отменен' : '⏳ В обработке'}
+                        </div>
+                    </div>
+                    <div class="card-price">${order.total.toLocaleString()} ₽</div>
+                    <p><strong>Покупатель:</strong> ${order.buyer}</p>
+                    <p><strong>Дата:</strong> ${new Date(order.date).toLocaleDateString()}</p>
+                    <p><strong>Товаров:</strong> ${order.items.length} шт.</p>
+                    ${order.status === 'pending' ? `
+                        <div class="card-actions">
+                            <button class="button button-small" onclick="updateOrderStatus(${order.id}, 'completed')">✅ Выполнить заказ</button>
+                            <button class="button button-small button-danger" onclick="updateOrderStatus(${order.id}, 'cancelled')">❌ Отменить заказ</button>
+                        </div>
+                    ` : ''}
+                `;
+                container.appendChild(orderCard);
+            });
+        }
+
+        function updateOrderStatus(orderId, status) {
+            const order = DB.orders.find(o => o.id === orderId && o.seller === currentUser.username);
+            if (order) {
+                order.status = status;
+                saveDB();
+                loadSellerOrders();
+                showNotification(`Статус заказа обновлен на "${status}"`);
+            }
         }
 
         function makeBid(lotId) {
-            showNotification('Функция ставок в разработке', 'warning');
+            const bidAmount = parseInt(document.getElementById(`bid-amount-${lotId}`).value);
+            const lot = DB.auction.find(l => l.id === lotId);
+            
+            if (!bidAmount || bidAmount <= lot.currentPrice) {
+                showNotification('Ставка должна быть выше текущей цены', 'error');
+                return;
+            }
+            
+            if (bidAmount > currentUser.balance) {
+                showNotification('Недостаточно средств', 'error');
+                return;
+            }
+            
+            lot.currentPrice = bidAmount;
+            lot.currentBidder = currentUser.username;
+            lot.bids.push({
+                bidder: currentUser.username,
+                amount: bidAmount,
+                date: new Date().toISOString()
+            });
+            
+            saveDB();
+            loadAuction();
+            showNotification(`Ставка ${bidAmount.toLocaleString()} ₽ принята!`);
         }
 
         // Инициализация при загрузке
