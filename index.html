@@ -1277,12 +1277,6 @@
                     saveDB();
                 }
 
-                // Загружаем корзину
-                const savedCart = localStorage.getItem(`empire_cart_${currentUser ? currentUser.username : ''}`);
-                if (savedCart) {
-                    cart = JSON.parse(savedCart);
-                }
-
             } catch (e) {
                 console.log("Ошибка инициализации:", e);
             }
@@ -1418,8 +1412,103 @@
                 // Показываем соответствующую секцию
                 document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
                 document.getElementById(`${section}-section`).classList.add('active');
+                
+                // Загружаем данные для секции
+                loadSectionData(section);
             });
         });
+
+        // Вкладки
+        function initTabs() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabId = this.getAttribute('data-tab');
+                    const container = this.closest('.tab-container');
+                    
+                    // Обновляем активную вкладку
+                    container.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Показываем соответствующее содержимое
+                    const section = this.closest('.section');
+                    const contentContainer = section.querySelectorAll('.tab-content');
+                    contentContainer.forEach(c => c.classList.remove('active'));
+                    document.getElementById(tabId).classList.add('active');
+                    
+                    // Загружаем данные для вкладки
+                    loadTabData(tabId);
+                });
+            });
+        }
+
+        // Загрузка данных для секций
+        function loadSectionData(section) {
+            switch(section) {
+                case 'bank':
+                    loadTransactions();
+                    break;
+                case 'realty':
+                    loadRealty();
+                    break;
+                case 'darknet':
+                    loadProducts();
+                    break;
+                case 'auction':
+                    loadAuction();
+                    break;
+                case 'cart':
+                    loadCart();
+                    break;
+                case 'my-property':
+                    loadUserProperty();
+                    break;
+                case 'seller-orders':
+                    loadSellerOrders();
+                    break;
+                case 'profile':
+                    loadProfile();
+                    break;
+            }
+        }
+
+        // Загрузка данных для вкладок
+        function loadTabData(tabId) {
+            switch(tabId) {
+                case 'houses':
+                case 'cars':
+                case 'business':
+                    loadRealtyByType(tabId);
+                    break;
+                case 'my-realty':
+                    loadMyRealty();
+                    break;
+                case 'drugs':
+                case 'weapons':
+                case 'other':
+                    loadProductsByCategory(tabId);
+                    break;
+                case 'my-products':
+                    loadMyProducts();
+                    break;
+                case 'auction-live':
+                    loadAuction();
+                    break;
+                case 'my-bids':
+                    loadMyBids();
+                    break;
+                case 'my-lots':
+                    loadMyLots();
+                    break;
+                case 'my-houses':
+                case 'my-cars':
+                case 'my-business':
+                    loadUserPropertyByType(tabId.replace('my-', ''));
+                    break;
+                case 'my-orders':
+                    loadUserOrders();
+                    break;
+            }
+        }
 
         // Обновление UI
         function updateUI() {
@@ -1445,6 +1534,9 @@
             
             // Обновляем корзину
             updateCartUI();
+            
+            // Инициализируем вкладки
+            initTabs();
         }
 
         function updateRoleBasedUI() {
@@ -1474,19 +1566,375 @@
             }
         }
 
+        // Базовые функции для работы с данными
+        function loadTransactions() {
+            const container = document.getElementById('transaction-history');
+            if (!container) return;
+            
+            const userTransactions = DB.transactions
+                .filter(t => t.user === currentUser.username)
+                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                .slice(0, 10);
+            
+            if (userTransactions.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #666;">Нет операций</div>';
+                return;
+            }
+            
+            let html = '';
+            userTransactions.forEach(transaction => {
+                const sign = transaction.amount > 0 ? '+' : '';
+                const color = transaction.amount > 0 ? 'var(--primary)' : 'var(--danger)';
+                const date = new Date(transaction.date).toLocaleDateString();
+                
+                html += `
+                    <div style="padding: 8px 0; border-bottom: 1px solid #333;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>${transaction.description}</span>
+                            <span style="color: ${color};">${sign}${transaction.amount.toLocaleString()} ₽</span>
+                        </div>
+                        <div style="font-size: 0.8em; color: #888;">${date}</div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function loadRealty() {
+            loadRealtyByType('houses');
+        }
+
+        function loadRealtyByType(type) {
+            const container = document.getElementById(`${type}-container`);
+            if (!container) return;
+            
+            const items = DB.realty.filter(r => r.type === type);
+            
+            if (items.length === 0) {
+                let typeName = '';
+                switch(type) {
+                    case 'houses': typeName = 'домов'; break;
+                    case 'cars': typeName = 'машин'; break;
+                    case 'business': typeName = 'бизнесов'; break;
+                }
+                container.innerHTML = `<div class="card" style="text-align: center; color: #666;">Нет ${typeName} в продаже</div>`;
+                return;
+            }
+            
+            container.innerHTML = '';
+            items.forEach(item => {
+                const itemCard = document.createElement('div');
+                itemCard.className = 'card realty-theme';
+                itemCard.innerHTML = `
+                    <div class="card-title">${item.name}</div>
+                    <div class="card-price">${item.price.toLocaleString()} ₽</div>
+                    <div class="card-seller">Продавец: ${item.seller}</div>
+                    <p>${item.description}</p>
+                    <button class="button button-small" onclick="addToCart('realty', ${item.id})" style="width: 100%; margin-top: 15px;">🛒 В КОРЗИНУ</button>
+                `;
+                container.appendChild(itemCard);
+            });
+        }
+
+        function loadProducts() {
+            loadProductsByCategory('drugs');
+        }
+
+        function loadProductsByCategory(category) {
+            const container = document.getElementById(`${category}-container`);
+            if (!container) return;
+            
+            const products = DB.products.filter(p => p.category === category && p.stock > 0);
+            
+            if (products.length === 0) {
+                let categoryName = '';
+                switch(category) {
+                    case 'drugs': categoryName = 'наркотиков'; break;
+                    case 'weapons': categoryName = 'оружия'; break;
+                    case 'other': categoryName = 'разных товаров'; break;
+                }
+                container.innerHTML = `<div class="card" style="text-align: center; color: #666;">Нет ${categoryName} в продаже</div>`;
+                return;
+            }
+            
+            container.innerHTML = '';
+            products.forEach(product => {
+                const productCard = document.createElement('div');
+                productCard.className = 'card';
+                productCard.innerHTML = `
+                    <div class="card-title">${product.name}</div>
+                    <div class="card-price">${product.price.toLocaleString()} ₽</div>
+                    <div class="card-seller">Продавец: ${product.seller}</div>
+                    <div class="card-stock">В наличии: ${product.stock} шт.</div>
+                    <p>${product.description}</p>
+                    <button class="button button-small" onclick="addToCart('product', ${product.id})" style="width: 100%; margin-top: 10px;">🛒 В КОРЗИНУ</button>
+                `;
+                container.appendChild(productCard);
+            });
+        }
+
+        function loadAuction() {
+            const container = document.getElementById('auction-container');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            const activeLots = DB.auction.filter(lot => lot.active && new Date(lot.endTime) > new Date());
+            
+            if (activeLots.length === 0) {
+                container.innerHTML = '<div class="card auction-theme" style="text-align: center; color: #666;">⚜️ Активных лотов нет</div>';
+                return;
+            }
+            
+            activeLots.forEach(lot => {
+                const timeLeft = Math.max(0, Math.floor((new Date(lot.endTime) - new Date()) / (1000 * 60 * 60)));
+                const timeLeftMinutes = Math.floor(((new Date(lot.endTime) - new Date()) % (1000 * 60 * 60)) / (1000 * 60));
+                
+                const lotCard = document.createElement('div');
+                lotCard.className = 'card auction-theme';
+                lotCard.innerHTML = `
+                    <div class="card-title">${lot.name}</div>
+                    <div class="card-price">${lot.currentPrice.toLocaleString()} ₽</div>
+                    <p><strong>Категория:</strong> ${lot.category === 'cars' ? '🚗 Автомобили' : 
+                                                     lot.category === 'houses' ? '🏘️ Недвижимость' : 
+                                                     lot.category === 'business' ? '🏢 Бизнес' : '📦 Другое'}</p>
+                    <p><strong>Текущий победитель:</strong> ${lot.currentBidder || 'Нет'}</p>
+                    <p><strong>Время до конца:</strong> ${timeLeft}ч ${timeLeftMinutes}м</p>
+                    <p>${lot.description}</p>
+                    <div class="form-group" style="margin-top: 15px;">
+                        <input type="number" id="bid-amount-${lot.id}" class="form-input" placeholder="Ваша ставка" min="${lot.currentPrice + 1}" max="100000000">
+                        <button class="button button-small" onclick="makeBid(${lot.id})" style="width: 100%; margin-top: 10px;">💵 СДЕЛАТЬ СТАВКУ</button>
+                    </div>
+                `;
+                container.appendChild(lotCard);
+            });
+        }
+
         function updateCartUI() {
             const badge = document.getElementById('cart-badge');
             const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
             badge.textContent = totalItems;
         }
 
+        function loadCart() {
+            const container = document.getElementById('cart-items-container');
+            const totalAmount = document.getElementById('cart-total-amount');
+            const checkoutBtn = document.getElementById('checkout-btn');
+            const clearBtn = document.getElementById('clear-cart-btn');
+            
+            if (cart.length === 0) {
+                container.innerHTML = '<div class="card" style="text-align: center; padding: 40px; color: #666;">🛒 Корзина пуста</div>';
+                totalAmount.textContent = '0';
+                checkoutBtn.disabled = true;
+                clearBtn.disabled = true;
+                return;
+            }
+            
+            let html = '';
+            let total = 0;
+            
+            cart.forEach(item => {
+                let itemData;
+                if (item.type === 'product') {
+                    itemData = DB.products.find(p => p.id === item.id);
+                } else if (item.type === 'realty') {
+                    itemData = DB.realty.find(r => r.id === item.id);
+                }
+                
+                if (itemData) {
+                    const itemTotal = itemData.price * item.quantity;
+                    total += itemTotal;
+                    
+                    html += `
+                        <div class="cart-item">
+                            <div class="cart-item-info">
+                                <div class="card-title">${itemData.name}</div>
+                                <div class="card-price">${itemData.price.toLocaleString()} ₽</div>
+                                <div class="card-seller">Продавец: ${itemData.seller}</div>
+                            </div>
+                            <div class="cart-item-actions">
+                                <div class="quantity-control">
+                                    <button class="quantity-btn" onclick="updateQuantity('${item.type}', ${item.id}, ${item.quantity - 1})">-</button>
+                                    <input type="number" class="quantity-input" value="${item.quantity}" min="1" 
+                                           onchange="updateQuantity('${item.type}', ${item.id}, parseInt(this.value))">
+                                    <button class="quantity-btn" onclick="updateQuantity('${item.type}', ${item.id}, ${item.quantity + 1})">+</button>
+                                </div>
+                                <div style="font-weight: bold; margin: 0 15px;">
+                                    ${itemTotal.toLocaleString()} ₽
+                                </div>
+                                <button class="button button-small button-danger" onclick="removeFromCart('${item.type}', ${item.id})">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+            
+            container.innerHTML = html;
+            totalAmount.textContent = total.toLocaleString();
+            checkoutBtn.disabled = false;
+            clearBtn.disabled = false;
+        }
+
+        // Базовые функции для работы с корзиной
+        function addToCart(type, id) {
+            let item;
+            
+            if (type === 'product') {
+                item = DB.products.find(p => p.id === id);
+            } else if (type === 'realty') {
+                item = DB.realty.find(r => r.id === id);
+            }
+            
+            if (!item) return;
+            
+            // Проверяем, есть ли уже такой товар в корзине
+            const existingItem = cart.find(cartItem => cartItem.type === type && cartItem.id === id);
+            
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cart.push({
+                    type: type,
+                    id: id,
+                    quantity: 1
+                });
+            }
+            
+            saveDB();
+            updateCartUI();
+            showNotification(`"${item.name}" добавлен в корзину`);
+        }
+
+        function updateQuantity(type, id, newQuantity) {
+            if (newQuantity < 1) return;
+            
+            const item = cart.find(cartItem => cartItem.type === type && cartItem.id === id);
+            if (item) {
+                item.quantity = newQuantity;
+                saveDB();
+                loadCart();
+            }
+        }
+
+        function removeFromCart(type, id) {
+            cart = cart.filter(item => !(item.type === type && item.id === id));
+            saveDB();
+            loadCart();
+            showNotification('Товар удален из корзины');
+        }
+
+        function clearCart() {
+            cart = [];
+            saveDB();
+            loadCart();
+            showNotification('Корзина очищена');
+        }
+
+        // Заглушки для остальных функций
+        function addRealty() {
+            showNotification('Функция добавления недвижимости в разработке', 'warning');
+        }
+
+        function addProduct() {
+            showNotification('Функция добавления товара в разработке', 'warning');
+        }
+
+        function addAuctionLot() {
+            showNotification('Функция добавления лота в разработке', 'warning');
+        }
+
+        function checkout() {
+            showNotification('Функция оформления заказа в разработке', 'warning');
+        }
+
+        function adminAddFunds() {
+            showNotification('Функция пополнения баланса в разработке', 'warning');
+        }
+
+        function addSelfFunds() {
+            showNotification('Функция самовыдачи в разработке', 'warning');
+        }
+
+        function makeTransfer() {
+            showNotification('Функция переводов в разработке', 'warning');
+        }
+
+        function changePassword() {
+            showNotification('Функция смены пароля в разработке', 'warning');
+        }
+
+        function showProfile() {
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById('profile-section').classList.add('active');
+            document.querySelector('.nav-item[data-section="profile"]').classList.add('active');
+            loadProfile();
+        }
+
+        function loadProfile() {
+            // Заглушка
+        }
+
+        function saveProfile() {
+            showNotification('Функция сохранения профиля в разработке', 'warning');
+        }
+
+        function showChangePassword() {
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById('bank-section').classList.add('active');
+            document.querySelector('.nav-item[data-section="bank"]').classList.add('active');
+        }
+
+        // Заглушки для остальных функций загрузки
+        function loadMyRealty() {
+            const container = document.getElementById('my-realty-container');
+            container.innerHTML = '<div class="card" style="text-align: center; color: #666;">🏠 У вас нет объектов недвижимости</div>';
+        }
+
+        function loadMyProducts() {
+            const container = document.getElementById('my-products-container');
+            container.innerHTML = '<div class="card" style="text-align: center; color: #666;">📦 У вас нет товаров</div>';
+        }
+
+        function loadMyBids() {
+            const container = document.getElementById('my-bids-container');
+            container.innerHTML = '<div class="card" style="text-align: center; color: #666;">💵 У вас нет ставок</div>';
+        }
+
+        function loadMyLots() {
+            const container = document.getElementById('my-lots-container');
+            container.innerHTML = '<div class="card" style="text-align: center; color: #666;">⚜️ У вас нет лотов</div>';
+        }
+
+        function loadUserProperty() {
+            loadUserPropertyByType('houses');
+        }
+
+        function loadUserPropertyByType(type) {
+            const container = document.getElementById(`my-${type}-container`);
+            container.innerHTML = `<div class="card" style="text-align: center; color: #666;">У вас нет ${type === 'houses' ? 'домов' : type === 'cars' ? 'машин' : 'бизнесов'}</div>`;
+        }
+
+        function loadUserOrders() {
+            const container = document.getElementById('my-orders-container');
+            container.innerHTML = '<div class="card" style="text-align: center; color: #666;">📦 У вас нет заказов</div>';
+        }
+
+        function loadSellerOrders() {
+            const container = document.getElementById('seller-orders-container');
+            container.innerHTML = '<div class="card" style="text-align: center; color: #666;">📦 У вас нет заказов для обработки</div>';
+        }
+
+        function makeBid(lotId) {
+            showNotification('Функция ставок в разработке', 'warning');
+        }
+
         // Инициализация при загрузке
         document.addEventListener('DOMContentLoaded', function() {
             initDB();
         });
-
-        // Добавьте здесь остальные функции из вашего исходного кода...
-        // Они будут работать так же как в оригинале
 
     </script>
 </body>
