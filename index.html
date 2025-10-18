@@ -125,86 +125,383 @@
     </div>
 
     <script>
+        // Инициализация базы данных при загрузке
+        function initDB() {
+            try {
+                // Проверяем доступность localStorage
+                if (typeof(Storage) === "undefined") {
+                    console.log("LocalStorage не поддерживается");
+                    return false;
+                }
+                
+                // Создаем тестовых пользователей если их нет
+                if (!localStorage.getItem('shadow_empire_users')) {
+                    const users = {
+                        'owner': { password: 'owner123', role: 'owner', balance: 1000000000 },
+                        'tech_admin': { password: 'admin123', role: 'tech_admin', balance: 500000000 },
+                        'seller1': { password: '123', role: 'seller', balance: 10000000 },
+                        'buyer1': { password: '123', role: 'buyer', balance: 5000000 }
+                    };
+                    localStorage.setItem('shadow_empire_users', JSON.stringify(users));
+                }
+                
+                // Создаем тестовые товары если их нет
+                if (!localStorage.getItem('shadow_empire_products')) {
+                    const products = [
+                        {
+                            id: 1,
+                            name: "Премиум кокаин",
+                            price: 5000,
+                            seller: "seller1",
+                            stock: 100,
+                            category: "drugs",
+                            description: "Высококачественный кокаин из Колумбии"
+                        },
+                        {
+                            id: 2,
+                            name: "АК-47",
+                            price: 15000,
+                            seller: "seller1",
+                            stock: 50,
+                            category: "weapons",
+                            description: "Надежный автомат Калашникова"
+                        }
+                    ];
+                    localStorage.setItem('shadow_empire_products', JSON.stringify(products));
+                }
+                
+                // Создаем недвижимость если её нет
+                if (!localStorage.getItem('shadow_empire_realty')) {
+                    const realty = [
+                        {
+                            id: 1,
+                            name: "Пентхаус в Москва-Сити",
+                            price: 50000000,
+                            seller: "seller1",
+                            type: "houses",
+                            description: "Роскошный пентхаус с панорамным видом"
+                        },
+                        {
+                            id: 2,
+                            name: "Ferrari F8 Tributo",
+                            price: 25000000,
+                            seller: "seller1",
+                            type: "cars",
+                            description: "Спортивный автомобиль класса люкс"
+                        }
+                    ];
+                    localStorage.setItem('shadow_empire_realty', JSON.stringify(realty));
+                }
+                
+                return true;
+            } catch (e) {
+                console.log("Ошибка инициализации:", e);
+                return false;
+            }
+        }
+
         function login() {
-            const username = document.getElementById('username').value;
+            const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             
-            // Простая проверка логина
-            const users = {
-                'owner': 'owner123',
-                'tech_admin': 'admin123', 
-                'seller1': '123',
-                'buyer1': '123'
-            };
+            if (!username || !password) {
+                alert('❌ Заполните все поля!');
+                return;
+            }
             
-            if (users[username] && users[username] === password) {
-                // Сохраняем в localStorage
-                localStorage.setItem('currentUser', username);
+            try {
+                // Инициализируем базу данных
+                if (!initDB()) {
+                    alert('❌ Ошибка инициализации системы');
+                    return;
+                }
                 
-                // Показываем успешный вход
-                document.body.innerHTML = `
-                    <div class="terminal">
-                        <h1>✅ УСПЕШНЫЙ ВХОД</h1>
-                        <div class="status">
-                            Добро пожаловать, ${username}!
-                        </div>
-                        <button onclick="loadMainApp()" style="margin-top: 20px;">
-                            🚀 ЗАГРУЗИТЬ ПОЛНУЮ ВЕРСИЮ
-                        </button>
-                    </div>
-                `;
-            } else {
-                alert('❌ Неверный логин или пароль!');
+                // Загружаем пользователей
+                const users = JSON.parse(localStorage.getItem('shadow_empire_users') || '{}');
+                
+                if (users[username] && users[username].password === password) {
+                    // Сохраняем текущего пользователя
+                    localStorage.setItem('currentUser', JSON.stringify({
+                        username: username,
+                        role: users[username].role,
+                        balance: users[username].balance
+                    }));
+                    
+                    // Загружаем полную версию
+                    loadMainApp();
+                } else {
+                    alert('❌ Неверный логин или пароль!');
+                }
+            } catch (e) {
+                alert('❌ Ошибка входа. Попробуйте обновить страницу.');
             }
         }
         
         function loadMainApp() {
-            // Загружаем основное приложение
-            const user = localStorage.getItem('currentUser');
-            
-            document.body.innerHTML = `
-                <div class="terminal">
-                    <h1>🎮 SHADOW EMPIRE</h1>
-                    <div class="status">
-                        👤 Пользователь: ${user} | 💰 Баланс: 1,000,000 ₽
+            try {
+                const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+                if (!currentUser) {
+                    logout();
+                    return;
+                }
+                
+                document.body.innerHTML = `
+                    <div class="terminal">
+                        <h1>🎮 SHADOW EMPIRE</h1>
+                        <div class="status">
+                            👤 ${currentUser.username} | 🏷️ ${currentUser.role} | 💰 ${currentUser.balance.toLocaleString()} ₽
+                        </div>
+                        
+                        <div style="margin: 20px 0; display: grid; gap: 10px;">
+                            <button onclick="showSection('bank')">🏦 БАНК</button>
+                            <button onclick="showSection('realty')">🏠 НЕДВИЖИМОСТЬ</button>
+                            <button onclick="showSection('darknet')">🌐 ДАРКНЕТ</button>
+                            ${currentUser.role === 'seller' || currentUser.role === 'owner' || currentUser.role === 'tech_admin' ? 
+                                '<button onclick="showSection(\'add-product\')">➕ ДОБАВИТЬ ТОВАР</button>' : ''}
+                            <button onclick="showSection('cart')">🛒 КОРЗИНА</button>
+                            <button onclick="logout()" style="background: #330000;">🚪 ВЫЙТИ</button>
+                        </div>
+                        
+                        <div id="content">
+                            <h3>Добро пожаловать в Shadow Empire!</h3>
+                            <p>Выберите раздел для начала работы.</p>
+                        </div>
                     </div>
-                    
-                    <div style="margin: 20px 0;">
-                        <button onclick="showSection('bank')">🏦 БАНК</button>
-                        <button onclick="showSection('realty')">🏠 НЕДВИЖИМОСТЬ</button>
-                        <button onclick="showSection('darknet')">🌐 ДАРКНЕТ</button>
-                        <button onclick="logout()">🚪 ВЫЙТИ</button>
-                    </div>
-                    
-                    <div id="content">
-                        <h3>Добро пожаловать в Shadow Empire!</h3>
-                        <p>Выберите раздел для начала работы.</p>
-                    </div>
-                </div>
-            `;
+                `;
+            } catch (e) {
+                alert('❌ Ошибка загрузки приложения');
+                logout();
+            }
         }
         
         function showSection(section) {
             const content = document.getElementById('content');
-            const sections = {
-                bank: '<h3>🏦 БАНК</h3><p>Баланс: 1,000,000 ₽</p><button>ПОПОЛНИТЬ</button>',
-                realty: '<h3>🏠 НЕДВИЖИМОСТЬ</h3><p>Доступные объекты...</p>',
-                darknet: '<h3>🌐 ДАРКНЕТ</h3><p>Товары и услуги...</p>'
-            };
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
             
-            content.innerHTML = sections[section] || '<p>Раздел в разработке</p>';
+            try {
+                switch(section) {
+                    case 'bank':
+                        content.innerHTML = `
+                            <h3>🏦 БАНК</h3>
+                            <div class="status">
+                                Баланс: ${currentUser.balance.toLocaleString()} ₽
+                            </div>
+                            ${currentUser.role === 'owner' || currentUser.role === 'tech_admin' ? `
+                                <div style="margin: 15px 0;">
+                                    <input type="number" id="add-money" placeholder="Сумма" style="margin: 5px 0;">
+                                    <button onclick="addMoney()">💸 ПОПОЛНИТЬ БАЛАНС</button>
+                                </div>
+                            ` : ''}
+                        `;
+                        break;
+                        
+                    case 'realty':
+                        const realty = JSON.parse(localStorage.getItem('shadow_empire_realty') || '[]');
+                        let realtyHTML = '<h3>🏠 НЕДВИЖИМОСТЬ</h3>';
+                        
+                        if (realty.length === 0) {
+                            realtyHTML += '<p>Нет объектов в продаже</p>';
+                        } else {
+                            realty.forEach(item => {
+                                realtyHTML += `
+                                    <div style="border: 1px solid #00ff00; padding: 10px; margin: 10px 0; border-radius: 5px;">
+                                        <strong>${item.name}</strong><br>
+                                        💰 ${item.price.toLocaleString()} ₽<br>
+                                        👤 ${item.seller}<br>
+                                        <button onclick="addToCart('realty', ${item.id})" style="margin-top: 5px;">🛒 В КОРЗИНУ</button>
+                                    </div>
+                                `;
+                            });
+                        }
+                        content.innerHTML = realtyHTML;
+                        break;
+                        
+                    case 'darknet':
+                        const products = JSON.parse(localStorage.getItem('shadow_empire_products') || '[]');
+                        let productsHTML = '<h3>🌐 ДАРКНЕТ МАРКЕТ</h3>';
+                        
+                        if (products.length === 0) {
+                            productsHTML += '<p>Нет товаров в продаже</p>';
+                        } else {
+                            products.forEach(product => {
+                                productsHTML += `
+                                    <div style="border: 1px solid #00ff00; padding: 10px; margin: 10px 0; border-radius: 5px;">
+                                        <strong>${product.name}</strong><br>
+                                        💰 ${product.price.toLocaleString()} ₽<br>
+                                        📦 В наличии: ${product.stock} шт.<br>
+                                        👤 ${product.seller}<br>
+                                        <button onclick="addToCart('product', ${product.id})" style="margin-top: 5px;">🛒 В КОРЗИНУ</button>
+                                    </div>
+                                `;
+                            });
+                        }
+                        content.innerHTML = productsHTML;
+                        break;
+                        
+                    case 'add-product':
+                        if (currentUser.role !== 'seller' && currentUser.role !== 'owner' && currentUser.role !== 'tech_admin') {
+                            content.innerHTML = '<p>❌ Недостаточно прав</p>';
+                            return;
+                        }
+                        
+                        content.innerHTML = `
+                            <h3>➕ ДОБАВИТЬ ТОВАР</h3>
+                            <input type="text" id="product-name" placeholder="Название товара">
+                            <input type="number" id="product-price" placeholder="Цена">
+                            <input type="number" id="product-stock" placeholder="Количество">
+                            <select id="product-category">
+                                <option value="drugs">💊 Наркотики</option>
+                                <option value="weapons">🔫 Оружие</option>
+                                <option value="other">📦 Разное</option>
+                            </select>
+                            <button onclick="addNewProduct()">✅ ДОБАВИТЬ</button>
+                        `;
+                        break;
+                        
+                    case 'cart':
+                        loadCart();
+                        break;
+                        
+                    default:
+                        content.innerHTML = '<p>Раздел в разработке</p>';
+                }
+            } catch (e) {
+                content.innerHTML = '<p>❌ Ошибка загрузки раздела</p>';
+            }
+        }
+        
+        function addMoney() {
+            try {
+                const amount = parseInt(document.getElementById('add-money').value);
+                if (amount && amount > 0) {
+                    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+                    currentUser.balance += amount;
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    showSection('bank');
+                }
+            } catch (e) {
+                alert('❌ Ошибка пополнения баланса');
+            }
+        }
+        
+        function addNewProduct() {
+            try {
+                const name = document.getElementById('product-name').value;
+                const price = parseInt(document.getElementById('product-price').value);
+                const stock = parseInt(document.getElementById('product-stock').value);
+                const category = document.getElementById('product-category').value;
+                const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+                
+                if (name && price && stock) {
+                    const products = JSON.parse(localStorage.getItem('shadow_empire_products') || '[]');
+                    const newProduct = {
+                        id: Date.now(),
+                        name: name,
+                        price: price,
+                        seller: currentUser.username,
+                        stock: stock,
+                        category: category,
+                        description: "Новый товар"
+                    };
+                    
+                    products.push(newProduct);
+                    localStorage.setItem('shadow_empire_products', JSON.stringify(products));
+                    alert('✅ Товар добавлен!');
+                    showSection('darknet');
+                }
+            } catch (e) {
+                alert('❌ Ошибка добавления товара');
+            }
+        }
+        
+        function addToCart(type, id) {
+            try {
+                let cart = JSON.parse(localStorage.getItem('shadow_empire_cart') || '[]');
+                const existingItem = cart.find(item => item.type === type && item.id === id);
+                
+                if (existingItem) {
+                    existingItem.quantity += 1;
+                } else {
+                    cart.push({
+                        type: type,
+                        id: id,
+                        quantity: 1
+                    });
+                }
+                
+                localStorage.setItem('shadow_empire_cart', JSON.stringify(cart));
+                alert('✅ Добавлено в корзину!');
+            } catch (e) {
+                alert('❌ Ошибка добавления в корзину');
+            }
+        }
+        
+        function loadCart() {
+            try {
+                const cart = JSON.parse(localStorage.getItem('shadow_empire_cart') || '[]');
+                let cartHTML = '<h3>🛒 КОРЗИНА</h3>';
+                
+                if (cart.length === 0) {
+                    cartHTML += '<p>Корзина пуста</p>';
+                } else {
+                    cart.forEach(item => {
+                        cartHTML += `
+                            <div style="border: 1px solid #00ff00; padding: 10px; margin: 10px 0; border-radius: 5px;">
+                                Товар ID: ${item.id} (${item.type})<br>
+                                Количество: ${item.quantity}<br>
+                                <button onclick="removeFromCart('${item.type}', ${item.id})" style="background: #330000;">🗑️ Удалить</button>
+                            </div>
+                        `;
+                    });
+                    cartHTML += '<button onclick="clearCart()" style="background: #330000; margin-top: 10px;">🗑️ ОЧИСТИТЬ КОРЗИНУ</button>';
+                }
+                
+                document.getElementById('content').innerHTML = cartHTML;
+            } catch (e) {
+                document.getElementById('content').innerHTML = '<p>❌ Ошибка загрузки корзины</p>';
+            }
+        }
+        
+        function removeFromCart(type, id) {
+            try {
+                let cart = JSON.parse(localStorage.getItem('shadow_empire_cart') || '[]');
+                cart = cart.filter(item => !(item.type === type && item.id === id));
+                localStorage.setItem('shadow_empire_cart', JSON.stringify(cart));
+                loadCart();
+            } catch (e) {
+                alert('❌ Ошибка удаления из корзины');
+            }
+        }
+        
+        function clearCart() {
+            try {
+                localStorage.removeItem('shadow_empire_cart');
+                loadCart();
+            } catch (e) {
+                alert('❌ Ошибка очистки корзины');
+            }
         }
         
         function logout() {
-            localStorage.removeItem('currentUser');
-            location.reload();
+            try {
+                localStorage.removeItem('currentUser');
+                location.reload();
+            } catch (e) {
+                location.reload();
+            }
         }
         
-        // Проверяем, есть ли активный пользователь
+        // Проверяем, есть ли активный пользователь при загрузке
         window.addEventListener('load', function() {
-            const currentUser = localStorage.getItem('currentUser');
-            if (currentUser) {
-                loadMainApp();
+            try {
+                const currentUser = localStorage.getItem('currentUser');
+                if (currentUser) {
+                    loadMainApp();
+                }
+                // Инициализируем базу данных
+                initDB();
+            } catch (e) {
+                console.log("Ошибка инициализации:", e);
             }
         });
     </script>
